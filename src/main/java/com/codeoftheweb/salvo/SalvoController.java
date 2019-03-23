@@ -7,12 +7,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.toList;
 
 @RestController
 @RequestMapping("/api")
@@ -131,8 +131,9 @@ public class SalvoController {
         }
         return new ResponseEntity<>(createMap("OK", "Ship positions saved successfully! "), HttpStatus.CREATED);
     }
+
     @PostMapping("/games/players/{gamePlayerId}/is_OFFLINE")
-    public ResponseEntity<Map<String, Object>> setAFK(@PathVariable Long gamePlayerId,Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> setAFK(@PathVariable Long gamePlayerId, Authentication authentication) {
         if (authentication == null) {
             return new ResponseEntity<>(createMap("error", "You need to be logged in to fire salvoes! Please Log in or Sign up."), HttpStatus.UNAUTHORIZED);
         }
@@ -146,10 +147,11 @@ public class SalvoController {
         }
         gamePlayer.setAfk(true);
         gamePlayerRepository.save(gamePlayer);
-        return new ResponseEntity<>(createMap("OK", "GamePlayer ["+gamePlayerId+"] set to OFFLINE"), HttpStatus.CREATED);
+        return new ResponseEntity<>(createMap("OK", "GamePlayer [" + gamePlayerId + "] set to OFFLINE"), HttpStatus.CREATED);
 
 
     }
+
     //Place Salvoes
     @PostMapping("/games/players/{gamePlayerId}/salvos")
     public ResponseEntity<Map<String, Object>> setSalvoes(@PathVariable Long gamePlayerId, @RequestBody Salvo salvo, Authentication authentication) {
@@ -176,53 +178,60 @@ public class SalvoController {
             return new ResponseEntity<>(createMap("error", "Not your turn or the Game is finished with: " + gameInfo), HttpStatus.FORBIDDEN);
         }
 
-        /*
-        Save the salvo
-        TODO: check the new salvo to add contains the same turn
-        */
-        /*-----*/
+        GamePlayer opponent = getOpponent(gamePlayer);
         Instant updateDate = Instant.now();
-//        System.out.println("Salvo Receive: " + salvo + "at : "+updateDate);
 
-        salvo.setTurnNumber(gamePlayer.getSalvoes().size() + 1);
+        int gpTurn = gamePlayer.getSalvoes().size() + 1;
+        int opTurn = opponent.getSalvoes().size() + 1;
+
+        if (gpTurn > opTurn + 1) {
+            System.out.println("SALVO SIZE BETWEEN PLAYER  GP:" + gamePlayer.getSalvoes() + " opponent: " + opponent.getSalvoes());
+            return new ResponseEntity<>(createMap("error", "Salvo number discrepancies. You can't sent more than one salvo per turn. Wait for opponent to play."), HttpStatus.FORBIDDEN);
+        }
+
+        salvo.setTurnNumber(gpTurn);
+
+        //Sanity check that the new salvo turn number is not already present in the gamePlayer salvoes.
+        // Can happen when player update quickly salvoes before Spring can save database.
+//        List<Salvo> previousSalvoes = new ArrayList<>(gamePlayer.getSalvoes());
+//        Salvo SalvoOfTurnAlreadySet = previousSalvoes.stream().filter(s -> s.getTurnNumber().equals(gpTurn)).findFirst().orElse(null);
+//        if(SalvoOfTurnAlreadySet!=null){
+//            System.out.println("SALVO PRESENT IN PREVIOUS TURNS?  INCONSISTENT:"+SalvoOfTurnAlreadySet);
+//            return new ResponseEntity<>(createMap("error", "This turn already have a salvo. Can't save " + salvo+" for this turn "+gpTurn), HttpStatus.FORBIDDEN);
+//        }
         salvo.setGamePlayer(gamePlayer);
         gamePlayer.addSalvo(salvo);
         gamePlayer.setLastPlayedDate(updateDate);
-        salvoRepository.saveAndFlush(salvo);
+
+        salvoRepository.save(salvo);
+
 
         //Re-check Game status after new salvo saved
-        GamePlayer opponent = getOpponent(gamePlayer);
-
-        gameStateObj = makeGameState(gamePlayer);
-        gameStatus = gameStateObj.get("Status");
-        gameInfo = gameStateObj.get("Info");
-
-        switch (gameStatus) {
-            case "WON":
-                Score userIsWinner = new Score(currentGame, gamePlayer.getPlayer(), 1.0);
-                Score opponentIsLooser = new Score(currentGame, opponent.getPlayer(), 0.0);
-                scoreRepository.save(userIsWinner);
-                scoreRepository.save(opponentIsLooser);
-                break;
-            case "LOST":
-                Score opponentIsWinner = new Score(currentGame, opponent.getPlayer(), 1.0);
-                Score userIsLooser = new Score(currentGame, gamePlayer.getPlayer(), 0.0);
-                scoreRepository.save(opponentIsWinner);
-                scoreRepository.save(userIsLooser);
-                break;
-            case "TIED":
-                Score userTied = new Score(currentGame, gamePlayer.getPlayer(), 0.5);
-                Score opponentTied = new Score(currentGame, opponent.getPlayer(), 0.5);
-                scoreRepository.save(userTied);
-                scoreRepository.save(opponentTied);
-                break;
-            case "GO":
-                break;
-            case "WAIT":
-                break;
-            default:
-                return new ResponseEntity<>(createMap("error", "Unexpected error occurred. Info: " + gameInfo), HttpStatus.FORBIDDEN);
-        }
+        applyScore(makeGameState(gamePlayer), currentGame, gamePlayer, opponent);
+//        switch (gameStatus) {
+//            case "WON":
+//                Score userIsWinner = new Score(currentGame, gamePlayer.getPlayer(), 1.0);
+//                Score opponentIsLooser = new Score(currentGame, opponent.getPlayer(), 0.0);
+//                scoreRepository.save(userIsWinner);
+//                scoreRepository.save(opponentIsLooser);
+//                break;
+//            case "LOST":
+//                Score opponentIsWinner = new Score(currentGame, opponent.getPlayer(), 1.0);
+//                Score userIsLooser = new Score(currentGame, gamePlayer.getPlayer(), 0.0);
+//                scoreRepository.save(opponentIsWinner);
+//                scoreRepository.save(userIsLooser);
+//                break;
+//            case "TIED":
+//                Score userTied = new Score(currentGame, gamePlayer.getPlayer(), 0.5);
+//                Score opponentTied = new Score(currentGame, opponent.getPlayer(), 0.5);
+//                scoreRepository.save(userTied);
+//                scoreRepository.save(opponentTied);
+//                break;
+//            case "GO":
+//                break;
+//            case "WAIT":
+//                break;
+//        }
 
         return new ResponseEntity<>(createMap("OK", "Salvo positions saved successfully! "), HttpStatus.CREATED);
     }
@@ -239,13 +248,31 @@ public class SalvoController {
             return new ResponseEntity<>(createMap("error", "This GamePlayer doesn't exist"), HttpStatus.UNAUTHORIZED);
         }
         if (gamePlayer.getPlayer().getId() == getLoggedPlayer(authentication).getId()) {
+
+            //Check if opponent is timeout
+            GamePlayer opponent = getOpponent(gamePlayer);
+            if (opponent != null) {
+
+                Duration timeDisconnected = Duration.between(Instant.now(), opponent.getLastConnected());
+                System.out.println("TIME DISCONNECTED: " + timeDisconnected.abs().toMinutes());
+                if (timeDisconnected.abs().toMinutes() > 5) {
+                    //Opponent didn't connect since 5 minutes, games finishes with opponent losing.
+                    opponent.setAfk(true);
+                    gamePlayerRepository.save(opponent);
+                }
+                applyScore(makeGameState(gamePlayer), gamePlayer.getGame(), gamePlayer, opponent);
+            }
+            //set time of connection relative to request to this gp id.
+            gamePlayer.setLastConnected(Instant.now());
+            gamePlayerRepository.save(gamePlayer);
+            //Apply score if any
+
             return new ResponseEntity<>(makeGameView(gamePlayer), HttpStatus.OK);
         } else {
             return new ResponseEntity<>(createMap("error", "Game Data access restricted. Nice try but no cheating..."), HttpStatus.UNAUTHORIZED);
         }
 
     }
-
 
     //Players
     @GetMapping("/players")
@@ -286,7 +313,8 @@ public class SalvoController {
         Game game = gamePlayer.getGame();
         dto.put("id", game.getId());
         dto.put("created", game.getCreationDate());
-        dto.put("lastPlayed",gamePlayer.getLastPlayedDate());
+        dto.put("lastPlayed", gamePlayer.getLastPlayedDate());
+        dto.put("lastConnected", gamePlayer.getLastConnected());
         dto.put("gameState", makeGameState(gamePlayer));
         dto.put("gamePlayers", game.getGamePlayers().stream().map(this::makeGamePlayersDTO).collect(toList()));
         dto.put("scores", game.getScores().stream().map(this::makeScoresDTO).collect(toList()));
@@ -296,7 +324,15 @@ public class SalvoController {
                 .stream()
                 .collect(Collectors.toMap(gp -> gp.getPlayer().getId(), gp -> gp.getSalvoes().
                         stream().
-                        collect(Collectors.toMap(Salvo::getTurnNumber, Salvo::getSalvoLocations)))));
+                        collect(Collectors.toMap(Salvo::getTurnNumber, Salvo::getSalvoLocations, (address1, address2) -> {
+                            System.out.println("duplicate key found! newval:" + address1 + "oldval: " + address2);
+                            if (address1.size() >= address2.size()) {
+                                return address1;
+                            } else {
+                                return address2;
+                            }
+
+                        })))));
         return dto;
     }
 
@@ -336,21 +372,22 @@ public class SalvoController {
                 Boolean opponentAllShipSunk = areAllShipsSunk(opponent, gamePlayer);
 
                 //Check if tied in AFK situation
-                if(gamePlayer.getAfk() && opponent.getAfk()){
+
+                if (gamePlayer.getAfk() && opponent.getAfk()) {
                     dto.put("Status", "TIED");
                     dto.put("code", "5");
                     dto.put("Info", "You both went AFK, you tied...");
                     return dto;
                 }
                 //Check if current gamePlayer is AFK
-                if(gamePlayer.getAfk() && !opponent.getAfk()){
+                if (gamePlayer.getAfk() && !opponent.getAfk()) {
                     dto.put("Status", "LOST");
                     dto.put("code", "5");
                     dto.put("Info", "You skipped too many rounds, you lost the game!");
                     return dto;
                 }
                 //Check if opponent gamePlayer is AFK
-                if(opponent.getAfk() && !gamePlayer.getAfk()){
+                if (opponent.getAfk() && !gamePlayer.getAfk()) {
                     dto.put("Status", "WON");
                     dto.put("code", "5");
                     dto.put("Info", "Opponent took too much time to play, you won the game!");
@@ -415,6 +452,34 @@ public class SalvoController {
         return dto;
     }
 
+    //Method to apply scores
+    private void applyScore(Map<String, String> gameState, Game currentGame, GamePlayer gamePlayer, GamePlayer opponent) {
+        String gameStatus = gameState.get("Status");
+        switch (gameStatus) {
+            case "WON":
+                Score userIsWinner = new Score(currentGame, gamePlayer.getPlayer(), 1.0);
+                Score opponentIsLooser = new Score(currentGame, opponent.getPlayer(), 0.0);
+                scoreRepository.save(userIsWinner);
+                scoreRepository.save(opponentIsLooser);
+                break;
+            case "LOST":
+                Score opponentIsWinner = new Score(currentGame, opponent.getPlayer(), 1.0);
+                Score userIsLooser = new Score(currentGame, gamePlayer.getPlayer(), 0.0);
+                scoreRepository.save(opponentIsWinner);
+                scoreRepository.save(userIsLooser);
+                break;
+            case "TIED":
+                Score userTied = new Score(currentGame, gamePlayer.getPlayer(), 0.5);
+                Score opponentTied = new Score(currentGame, opponent.getPlayer(), 0.5);
+                scoreRepository.save(userTied);
+                scoreRepository.save(opponentTied);
+                break;
+            case "GO":
+                break;
+            case "WAIT":
+                break;
+        }
+    }
 
     //Object format for finishedGames
     private Map<String, Object> makeFinishedGameInfo(Player player) {
@@ -469,6 +534,8 @@ public class SalvoController {
         Map<String, Object> dto = new LinkedHashMap<>();
         dto.put("id", gamePlayer.getId());
         dto.put("player", makePlayerDTO(gamePlayer.getPlayer()));
+        dto.put("lastPlayedDate", gamePlayer.getLastPlayedDate());
+        dto.put("lastConnectedDate", gamePlayer.getLastConnected());
         return dto;
     }
 
@@ -640,7 +707,7 @@ public class SalvoController {
     private boolean isIncreasingByOne(List<String> stringList, Boolean isListOfNames) {
         List<Integer> intList = new ArrayList<>();
         if (isListOfNames) {
-            intList.addAll(stringList.stream().map(x -> rowNameToNumber(x)).sorted().collect(Collectors.toList()));
+            intList.addAll(stringList.stream().map(this::rowNameToNumber).sorted().collect(Collectors.toList()));
         } else {
             intList.addAll(stringList.stream().map(Integer::parseInt).sorted().collect(Collectors.toList()));
         }
@@ -656,7 +723,8 @@ public class SalvoController {
 
     //Method to return true/false if all ships are sunk
     private Boolean areAllShipsSunk(GamePlayer gamePlayer, GamePlayer opponentPlayer) {
-        List<String> allOpponentSalvoesLocation = opponentPlayer.getSalvoes().stream().map(Salvo::getSalvoLocations).flatMap(List::stream).collect(toList());
+        Set<Salvo> opponentPlayerSalvoes = new LinkedHashSet<>(opponentPlayer.getSalvoes());
+        List<String> allOpponentSalvoesLocation = opponentPlayerSalvoes.stream().map(Salvo::getSalvoLocations).flatMap(List::stream).collect(toList());
         for (Ship ship : gamePlayer.getShips()) {
             List<String> shipHits = new ArrayList<>(allOpponentSalvoesLocation);
             shipHits.retainAll(ship.getLocations());

@@ -4,7 +4,8 @@ import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.*;
 import java.time.Instant;
-import java.util.*;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 public class GamePlayer {
@@ -15,6 +16,7 @@ public class GamePlayer {
 
     private Instant creationDate;
     private Instant lastPlayedDate;
+    private Instant lastConnected;
 
     private Boolean afk;
 
@@ -35,16 +37,17 @@ public class GamePlayer {
     private Set<Salvo> salvoes = new LinkedHashSet<>();
 
     /* Constructor ------------------------------------------------------------------------------*/
-    public GamePlayer() {}
-
+    public GamePlayer() {
+    }
 
 
     public GamePlayer(Game game, Player player) {
         this.gameP = game;
         this.playerP = player;
         this.creationDate = Instant.now();
-        this.lastPlayedDate=Instant.now();
-        this.afk=false;
+        this.lastPlayedDate = Instant.now();
+        this.lastConnected = Instant.now();
+        this.afk = false;
     }
 
     /* Getters & Setters ------------------------------------------------------------------------*/
@@ -59,18 +62,31 @@ public class GamePlayer {
     public Player getPlayer() {
         return playerP;
     }
+
     public Instant getLastPlayedDate() {
         return lastPlayedDate;
     }
+
     public void setLastPlayedDate(Instant lastPlayedDate) {
         this.lastPlayedDate = lastPlayedDate;
     }
+
+    public Instant getLastConnected() {
+        return lastConnected;
+    }
+
+    public void setLastConnected(Instant lastConnected) {
+        this.lastConnected = lastConnected;
+    }
+
     public Boolean getAfk() {
         return afk;
     }
+
     public void setAfk(Boolean afk) {
         this.afk = afk;
     }
+
     public void setPlayer(Player player) {
         this.playerP = player;
     }
@@ -83,14 +99,16 @@ public class GamePlayer {
         newShip.setGamePlayer(this);
         this.ships.add(newShip);
     }
-    public Set<Salvo> getSalvoes(){
+
+    public Set<Salvo> getSalvoes() {
         return salvoes;
     }
 
     public void setSalvoes(Set<Salvo> salvoes) {
         this.salvoes = salvoes;
     }
-    public void addSalvo(Salvo newSalvo){
+
+    public void addSalvo(Salvo newSalvo) {
         newSalvo.setGamePlayer(this);
         this.salvoes.add(newSalvo);
     }
@@ -107,7 +125,7 @@ public class GamePlayer {
         return id;
     }
 
-    public String toString(){
-        return "GamePlayer id:"+this.id+" Player: "+this.playerP+" Salvoes: "+this.salvoes;
+    public String toString() {
+        return "GamePlayer id:" + this.id + " Player: " + this.playerP + " Salvoes: " + this.salvoes;
     }
 }

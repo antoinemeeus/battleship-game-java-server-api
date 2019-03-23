@@ -254,9 +254,9 @@ public class SalvoController {
             if (opponent != null) {
 
                 Duration timeDisconnected = Duration.between(Instant.now(), opponent.getLastConnected());
-                System.out.println("TIME DISCONNECTED: " + timeDisconnected.abs().toMinutes());
-                if (timeDisconnected.abs().toMinutes() > 5) {
-                    //Opponent didn't connect since 5 minutes, games finishes with opponent losing.
+//                System.out.println("TIME DISCONNECTED: " + timeDisconnected.abs().toMinutes());
+                if (timeDisconnected.abs().toMinutes() > 3) {
+                    //Opponent didn't connect since 3 minutes, games finishes with opponent losing.
                     opponent.setAfk(true);
                     gamePlayerRepository.save(opponent);
                 }
@@ -366,33 +366,39 @@ public class SalvoController {
                 dto.put("Info", "Waiting for opponent to place ships");
                 return dto;
             }
+
+            //Check AFK Situation
+            /*---------------------------------*/
+            //Check if tied in AFK situation /*---------------------------------*/
+
+            if (gamePlayer.getAfk() && opponent.getAfk()) {
+                dto.put("Status", "TIED");
+                dto.put("code", "5");
+                dto.put("Info", "You both went AFK, you tied...");
+                return dto;
+            }
+            //Check if current gamePlayer is AFK
+            if (gamePlayer.getAfk() && !opponent.getAfk()) {
+                dto.put("Status", "LOST");
+                dto.put("code", "5");
+                dto.put("Info", "You skipped too many rounds, you lost the game!");
+                return dto;
+            }
+            //Check if opponent gamePlayer is AFK
+            if (opponent.getAfk() && !gamePlayer.getAfk()) {
+                dto.put("Status", "WON");
+                dto.put("code", "5");
+                dto.put("Info", "Opponent took too much time to play, you won the game!");
+                return dto;
+            }
+            /*---------------------------------*/
+
             //Players have finished firing salvoes
             if (gamePlayer.getSalvoes().size() == opponent.getSalvoes().size()) {
                 Boolean playerAllShipSunk = areAllShipsSunk(gamePlayer, opponent);
                 Boolean opponentAllShipSunk = areAllShipsSunk(opponent, gamePlayer);
 
-                //Check if tied in AFK situation
 
-                if (gamePlayer.getAfk() && opponent.getAfk()) {
-                    dto.put("Status", "TIED");
-                    dto.put("code", "5");
-                    dto.put("Info", "You both went AFK, you tied...");
-                    return dto;
-                }
-                //Check if current gamePlayer is AFK
-                if (gamePlayer.getAfk() && !opponent.getAfk()) {
-                    dto.put("Status", "LOST");
-                    dto.put("code", "5");
-                    dto.put("Info", "You skipped too many rounds, you lost the game!");
-                    return dto;
-                }
-                //Check if opponent gamePlayer is AFK
-                if (opponent.getAfk() && !gamePlayer.getAfk()) {
-                    dto.put("Status", "WON");
-                    dto.put("code", "5");
-                    dto.put("Info", "Opponent took too much time to play, you won the game!");
-                    return dto;
-                }
 
                 //Check if current player WON against opponent
                 if (!playerAllShipSunk && opponentAllShipSunk) {

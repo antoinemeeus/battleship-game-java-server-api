@@ -219,9 +219,9 @@ class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         // turn off checking for CSRF tokens
-        http.requiresChannel()
-                .requestMatchers(r -> r.getHeader("X-Forwarded-Proto") != null)
-                .requiresSecure();
+//        http.requiresChannel()
+//                .requestMatchers(r -> r.getHeader("X-Forwarded-Proto") != null)
+//                .requiresSecure();
 
         http
                 .cors()

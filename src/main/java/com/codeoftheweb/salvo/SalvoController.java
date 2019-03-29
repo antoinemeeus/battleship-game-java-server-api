@@ -461,6 +461,11 @@ public class SalvoController {
     //Method to apply scores
     private void applyScore(Map<String, String> gameState, Game currentGame, GamePlayer gamePlayer, GamePlayer opponent) {
         String gameStatus = gameState.get("Status");
+        System.out.println("APPLYING SCORE: ");
+        if (gamePlayer.getPlayer().getScore(gamePlayer.getGame()) != null) {
+            //Score is not null, so already exist, don't apply new score.
+            return;
+        }
         switch (gameStatus) {
             case "WON":
                 Score userIsWinner = new Score(currentGame, gamePlayer.getPlayer(), 1.0);

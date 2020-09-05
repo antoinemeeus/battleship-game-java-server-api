@@ -1,6 +1,5 @@
 package com.codeoftheweb.salvo;
 
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
@@ -9,7 +8,6 @@ import org.hibernate.annotations.GenericGenerator;
 import javax.persistence.*;
 import java.time.Instant;
 import java.util.*;
-
 
 @Entity
 public class Game {

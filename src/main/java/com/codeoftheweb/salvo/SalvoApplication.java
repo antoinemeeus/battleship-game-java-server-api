@@ -49,7 +49,6 @@ public class SalvoApplication {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-
 }
 
 @Configuration
@@ -69,14 +68,12 @@ class WebSecurityConfiguration extends GlobalAuthenticationConfigurerAdapter {
                 return new User(player.getEmail(), player.getPassword(),
                         AuthorityUtils.createAuthorityList("USER"));
             } else {
-                System.out.println("Failed... Unknow user: "+inputName);
+                System.out.println("Failed... Unknow user: " + inputName);
                 throw new UsernameNotFoundException("Unknown user: " + inputName);
             }
 
         });
     }
-
-
 }
 
 @Configuration
@@ -99,8 +96,6 @@ class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/api/players").permitAll()
                 .anyRequest().fullyAuthenticated();
 //                .anyRequest().permitAll();
-//                .and()
-//                .formLogin();
 
         http.formLogin()
                 .usernameParameter("email")

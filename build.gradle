@@ -1,65 +1,36 @@
-buildscript {
-    ext {
-        springBootVersion = '2.1.2.RELEASE'
-    }
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-        classpath('se.transmode.gradle:gradle-docker:1.2')
-    }
+plugins {
+    id 'org.springframework.boot' version '2.3.2.RELEASE'
+	id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+    id 'java'
 }
 
 apply plugin: 'java'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
-//apply plugin: 'docker'
-//
-//description = "salvo-game"
-//
-//jar {
-//    baseName = 'salvo-game'
-//    version = '1.0'
-//}
 
 group = 'com.codeoftheweb'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
-//tasks.withType(JavaCompile) {
-//    options.encoding = 'UTF-8'
-//}
-
 repositories {
     mavenCentral()
 }
-
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-data-rest'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    //	runtimeOnly 'com.h2database:h2'
-    // https://mvnrepository.com/artifact/mysql/mysql-connector-java
-//    compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.15'
-    //Docker dependencies:
-//    compile group: 'commons-dbcp', name: 'commons-dbcp', version: '1.4'
-    //Heroku Postgres dependencies:
-//    compile("org.postgresql:postgresql:9.4-1200-jdbc41")
+    implementation 'org.springframework.session:spring-session-core'
+    implementation 'org.junit.jupiter:junit-jupiter:5.4.2'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+   		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+   	}
+    compile 'org.springframework.session:spring-session-core'
     compile("org.postgresql:postgresql")
 }
 
-//task buildDocker(type: Docker, dependsOn: build) {
-//    applicationName = jar.baseName;
-//    dockerfile = file('Dockerfile')
-//    doFirst {
-//        copy {
-//            from jar
-//            into stageDir
-//        }
-//    }
-//}
+test {
+	useJUnitPlatform()
+}

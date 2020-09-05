@@ -18,6 +18,8 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.WebAttributes;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.session.web.http.CookieSerializer;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -32,6 +34,8 @@ public class SalvoApplication {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private CookieSerializer cookieConfiguration;
 
     public static void main(String[] args) {
         SpringApplication.run(SalvoApplication.class, args);
@@ -49,7 +53,12 @@ public class SalvoApplication {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-
+    @Bean
+    public CookieSerializer cookieSerializer() {
+        DefaultCookieSerializer serializer = new DefaultCookieSerializer();
+        serializer.setSameSite("none");
+        return serializer;
+    }
 }
 
 @Configuration
@@ -69,14 +78,12 @@ class WebSecurityConfiguration extends GlobalAuthenticationConfigurerAdapter {
                 return new User(player.getEmail(), player.getPassword(),
                         AuthorityUtils.createAuthorityList("USER"));
             } else {
-                System.out.println("Failed... Unknow user: "+inputName);
+                System.out.println("Failed... Unknow user: " + inputName);
                 throw new UsernameNotFoundException("Unknown user: " + inputName);
             }
 
         });
     }
-
-
 }
 
 @Configuration
@@ -99,8 +106,6 @@ class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/api/players").permitAll()
                 .anyRequest().fullyAuthenticated();
 //                .anyRequest().permitAll();
-//                .and()
-//                .formLogin();
 
         http.formLogin()
                 .usernameParameter("email")

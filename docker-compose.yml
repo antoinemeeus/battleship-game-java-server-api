@@ -1,0 +1,10 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: tonio
+      POSTGRES_PASSWORD: tonio
+      POSTGRES_DB: salvodb
+    ports:
+      - 5432:5432
